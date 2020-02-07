@@ -41,13 +41,36 @@ model_lakecomo::model_lakecomo(string filename){
     LakeComo->setMEF(Como_param.minEnvFlow);
     LakeComo->setSurface(145900000);
     LakeComo->setInitCond(Como_param.initCond);
+    // if available add other "lake" characteristics like setEvapRates instead of setEvap, setRatCurve, setLSV_Rel and setTailwater
 
     // policy
-    if (p_param.tPolicy == 4) {
+    switch (p_param.tPolicy) {
+    case 1: // RBF policy
+    {
+        param_function* mp1 = new rbf(p_param.policyInput,p_param.policyOutput,p_param.policyStr);
+        mPolicy = mp1;
+        break;
+    }
+    case 2: // ANN
+    {
+        param_function* mp2 = new ann(p_param.policyInput,p_param.policyOutput,p_param.policyStr);
+        mPolicy = mp2;
+        break;
+    }
+    case 3: // piecewise linear policy
+    {
+        param_function* mp3 = new pwLinear(p_param.policyInput,p_param.policyOutput,p_param.policyStr);
+        mPolicy = mp3;
+        break;
+    }
+    case 4: // RBF policy non-convex
+    {
         param_function* mp4 = new ncRBF(p_param.policyInput,p_param.policyOutput,p_param.policyStr);
         mPolicy = mp4;
-    }else{
-        cout << "Unable to open file";
+        break;
+    }
+    default:
+        break;
     }
 
     // min-max policy input
@@ -79,8 +102,32 @@ int model_lakecomo::getNvar() {
 
 void model_lakecomo::evaluate(double* var, double* obj){
 
+    // reformat decision variables into format read by rbf::setParameters
+    double fullVar[p_param.policyStr*(2*p_param.policyInput+p_param.policyOutput)];
+    unsigned int count = 0;
+    for(unsigned int i = 0; i < p_param.policyStr; i++){
+        for(unsigned int j = 0; j < p_param.policyInput-2; j++){
+            fullVar[count + 4*i] = var[count];
+            fullVar[count + 4*i + 1] = var[count+1];
+            count = count+2;
+        }
+        for(unsigned int j = 0; j < 2 ; j++){
+            // set centers to 0 and radii to 1 for sin and cos inputs
+            fullVar[count + 4*i + 2*j] = 0.0;
+            fullVar[count + 4*i + 2*j + 1] = 1.0;
+        }
+        for(unsigned int k = 0; k < p_param.policyOutput; k++){
+            fullVar[count + 4*(i+1)] = var[count];
+            count = count+1;
+        }
+    }
+    // phase shifts of sin and cos functions that go into RBF policies
+    double phi[2];
+    phi[0] = var[count+1];
+    phi[1] = var[count+2];
+
     // set CONTROL POLICY
-    mPolicy->setParameters(var);
+    mPolicy->setParameters(fullVar);
 
     vector<double> J ;
 
@@ -132,8 +179,8 @@ vector<double> model_lakecomo::simulate(int ps){
         qIn = ComoCatchment->getInflow(t, ps);
 
         // compute decision - standard
-        input.push_back( sin( 2*PI*doy[t]/T) );
-        input.push_back( cos( 2*PI*doy[t]/T) );
+        input.push_back( sin( 2*PI*doy[t]/T - phi[0]) );
+        input.push_back( cos( 2*PI*doy[t]/T - phi[1]) );
         input.push_back( h[t] );
         input.push_back( qForecast[t] );
         
