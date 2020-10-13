@@ -179,10 +179,10 @@ vector<double> model_lakecomo::simulate(int ps){
         qIn = ComoCatchment->getInflow(t, ps);
 
         // compute decision - standard
-        input.push_back( sin( 2*PI*doy[t]/T - phi[0]) );
-        input.push_back( cos( 2*PI*doy[t]/T - phi[1]) );
         input.push_back( h[t] );
         input.push_back( qForecast[t] );
+        input.push_back( sin( 2*PI*doy[t]/T - phi[0]) );
+        input.push_back( cos( 2*PI*doy[t]/T - phi[1]) );
         
         uu = mPolicy->get_NormOutput(input);
         u[t] = uu[0]; // single release decision
