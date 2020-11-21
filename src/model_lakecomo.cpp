@@ -123,8 +123,8 @@ void model_lakecomo::evaluate(double* var, double* obj){
     }
     // phase shifts of sin and cos functions that go into RBF policies
     double phi[2];
-    phi[0] = var[count+1];
-    phi[1] = var[count+2];
+    phi[0] = var[count];
+    phi[1] = var[count+1];
 
     // set CONTROL POLICY
     mPolicy->setParameters(fullVar);
@@ -132,7 +132,7 @@ void model_lakecomo::evaluate(double* var, double* obj){
     vector<double> J ;
 
     if(Nsim < 2){ // single simulation
-        J = simulate(0);
+        J = simulate(0, phi);
         for(unsigned int i=0; i<Nobj; i++){
             obj[i] = J[i];
         }
@@ -145,7 +145,7 @@ void model_lakecomo::evaluate(double* var, double* obj){
 
 
 
-vector<double> model_lakecomo::simulate(int ps){
+vector<double> model_lakecomo::simulate(int ps, double* phi){
 
     // INITIALIZATION: storage, level, decision, release
     vector<double> s (H+1,-999) ;
